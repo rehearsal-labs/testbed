@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testbed tasks</title>
+  <!-- An empty icon, so the browser asks for no favicon.ico. -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <section id="sign-in" class="card" aria-labelledby="sign-in-heading" hidden>
+      <h1 id="sign-in-heading">Sign in</h1>
+      <form id="sign-in-form" novalidate>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" data-testid="sign-in-email">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" data-testid="sign-in-password">
+        <p id="sign-in-error" class="error" role="alert" data-testid="sign-in-error" hidden>Wrong email or password. Try again.</p>
+        <button type="submit" class="primary" data-testid="sign-in-submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="tasks" class="card" aria-labelledby="tasks-heading" hidden>
+      <header class="bar">
+        <h1 id="tasks-heading">Tasks</h1>
+        <button type="button" id="sign-out" data-testid="sign-out">Sign out</button>
+      </header>
+      <p class="muted">Signed in as <span id="signed-in-as" data-testid="signed-in-as"></span></p>
+
+      <form id="add-task-form">
+        <label for="new-task">New task</label>
+        <div class="row">
+          <input id="new-task" name="title" type="text" maxlength="200" autocomplete="off" data-testid="new-task-title">
+          <button type="submit" class="primary" data-testid="add-task">Add task</button>
+        </div>
+      </form>
+
+      <div class="bar">
+        <div role="group" aria-label="Show tasks" class="filters">
+          <button type="button" data-filter="all" aria-pressed="true" data-testid="filter-all">All</button>
+          <button type="button" data-filter="open" aria-pressed="false" data-testid="filter-open">Open</button>
+          <button type="button" data-filter="done" aria-pressed="false" data-testid="filter-done">Done</button>
+        </div>
+        <p id="task-count" class="muted" aria-live="polite" data-testid="task-count"></p>
+      </div>
+
+      <ul id="task-list" class="tasks" data-testid="task-list"></ul>
+      <p id="empty-tasks" class="muted" data-testid="empty-tasks" hidden></p>
+    </section>
+  </main>
+
+  <dialog id="delete-dialog" class="card" aria-labelledby="delete-heading" data-testid="delete-dialog">
+    <h2 id="delete-heading">Delete this task?</h2>
+    <p id="delete-title" data-testid="delete-title"></p>
+    <form method="dialog" class="row end">
+      <button value="cancel" data-testid="cancel-delete">Cancel</button>
+      <button value="delete" class="danger" data-testid="confirm-delete">Delete</button>
+    </form>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,72 @@
+name: Rehearsal Action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  deployments: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Choose the rule
+        id: rule
+        env:
+          PUSH_RULE: ${{ vars.REHEARSAL_PUSH_RULE }}
+          PULL_REQUEST_RULE: ${{ vars.REHEARSAL_PULL_REQUEST_RULE }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            name=REHEARSAL_PULL_REQUEST_RULE rule=$PULL_REQUEST_RULE
+          else
+            name=REHEARSAL_PUSH_RULE rule=$PUSH_RULE
+          fi
+          if [ -z "$rule" ]; then
+            echo "::error::Set the repository variable $name to the ID of the Rehearsal rule for this event."
+            exit 1
+          fi
+          echo "id=$rule" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Vercel's deployment
+        id: vercel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Vercel names its GitHub environments Preview and Production, with the project's name
+          # after them when one repository feeds several Vercel projects.
+          ENVIRONMENT: ${{ github.event_name == 'pull_request' && 'Preview' || 'Production' }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            deployment=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$SHA&per_page=30" \
+              --jq "[.[] | select(.creator.login == \"vercel[bot]\" and (.environment | startswith(\"$ENVIRONMENT\")))][0].id // empty")
+            if [ -n "$deployment" ]; then
+              latest=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$deployment/statuses?per_page=1" \
+                --jq '.[0] // empty | "\(.state) \(if (.environment_url // "") != "" then .environment_url else .target_url // "" end)"')
+              read -r state address <<< "$latest"
+              if [ "$state" = success ] && [ -n "$address" ]; then
+                echo "Vercel deployed $SHA at $address"
+                echo "url=$address" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if [ "$state" = failure ] || [ "$state" = error ]; then
+                echo "::error::Vercel's $ENVIRONMENT deployment of $SHA failed. Its build log is in Vercel."
+                exit 1
+              fi
+            fi
+            sleep 10
+          done
+          echo "::error::Vercel had no ready $ENVIRONMENT deployment of $SHA after ten minutes. Check that Vercel deploys this repository."
+          exit 1
+
+      - uses: rehearsal-labs/run@v1
+        with:
+          rule: ${{ steps.rule.outputs.id }}
+          url: ${{ steps.vercel.outputs.url }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}

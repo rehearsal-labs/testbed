@@ -1,0 +1,32 @@
+name: Retest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          # Retest needs Node 24.12 or later, and the runner's cached Node 24 can be older.
+          check-latest: true
+      - run: npm ci
+      - run: npm run typecheck
+      # chrome() starts the image's Google Chrome at /opt/google/chrome/chrome, the path Ubuntu's
+      # AppArmor profile lets create the namespaces its sandbox needs.
+      - run: npx retest run
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: retest-runs
+          path: .retest/runs
+          # The run folder sits under .retest/, which the action skips unless hidden files are included.
+          include-hidden-files: true

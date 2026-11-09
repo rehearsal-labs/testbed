@@ -1,0 +1,19 @@
+{
+  "name": "testbed",
+  "private": true,
+  "type": "module",
+  "description": "A small task app that Rehearsal's GitHub integrations and Retest are tested against.",
+  "engines": {
+    "node": ">=24.12"
+  },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "retest run",
+    "typecheck": "tsc -p tests"
+  },
+  "devDependencies": {
+    "@rehearsal-labs/retest": "^0.3.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
