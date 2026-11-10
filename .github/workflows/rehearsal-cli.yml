@@ -5,34 +5,24 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The CLI signs in to Rehearsal with this job's GitHub identity, as the repository
+# connected to the project, so the workflow stores no Rehearsal secret.
 permissions:
-  contents: read
+  id-token: write
 
 jobs:
   run:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      REHEARSAL_WORKSPACE_ID: ${{ vars.REHEARSAL_WORKSPACE_ID }}
-      REHEARSAL_PROJECT: ${{ vars.REHEARSAL_PROJECT }}
       REHEARSAL_APP: ${{ vars.REHEARSAL_APP }}
     steps:
       - name: Check the repository settings
-        env:
-          HAS_CREDENTIALS: ${{ secrets.REHEARSAL_CREDENTIALS != '' }}
         run: |
-          status=0
-          if [ "$HAS_CREDENTIALS" != true ]; then
-            echo "::error::Add the repository secret REHEARSAL_CREDENTIALS, made as the README shows."
-            status=1
+          if [ -z "$REHEARSAL_APP" ]; then
+            echo "::error::Set the repository variable REHEARSAL_APP, as the README shows."
+            exit 1
           fi
-          for name in REHEARSAL_WORKSPACE_ID REHEARSAL_PROJECT REHEARSAL_APP; do
-            if [ -z "$(printenv "$name")" ]; then
-              echo "::error::Set the repository variable $name, as the README shows."
-              status=1
-            fi
-          done
-          exit "$status"
 
       - uses: actions/setup-node@v7
         with:
@@ -41,23 +31,14 @@ jobs:
           check-latest: true
       - run: npm install -g @rehearsal-labs/cli
 
-      - name: Sign in to Rehearsal
-        env:
-          REHEARSAL_CREDENTIALS: ${{ secrets.REHEARSAL_CREDENTIALS }}
-        run: |
-          folder="${XDG_CONFIG_HOME:-$HOME/.config}/rehearsal"
-          mkdir -p "$folder"
-          (umask 077 && printf '%s' "$REHEARSAL_CREDENTIALS" > "$folder/credentials.json")
-
       # Production is whatever Vercel serves there when the step starts, which can be the commit
       # before this one for the minute Vercel takes to deploy it.
       - name: Run the app's tests on production
         run: |
           # With --json a refusal is written to start.json, so print it before failing.
-          rehearsal runs start --workspace "$REHEARSAL_WORKSPACE_ID" --project "$REHEARSAL_PROJECT" \
-            --app "$REHEARSAL_APP" --environment production \
+          rehearsal runs start --app "$REHEARSAL_APP" --environment production \
             --idempotency-key "testbed-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --json > start.json \
             || { status=$?; cat start.json; exit "$status"; }
           for run in $(jq -r '(.data.runs // [.data])[].runId' start.json); do
-            rehearsal runs wait "$run" --workspace "$REHEARSAL_WORKSPACE_ID" --project "$REHEARSAL_PROJECT" --timeout 30m
+            rehearsal runs wait "$run" --timeout 30m
           done

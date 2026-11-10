@@ -47,52 +47,48 @@ Retest starts `scripts/serve.mjs` on port 4380 when nothing answers there, runs 
 
 `rehearsal-action.yml` runs on every push to `main` and every pull request into `main`. It waits up to ten minutes for Vercel to report a successful deployment of the commit, which on a pull request is its newest commit. It reads the deployment's address from GitHub's Deployments API and hands it to `rehearsal-labs/run@v1`, with the rule for the event. The Action signs in with GitHub's identity for the workflow, so it needs no Rehearsal secret. It waits for the run and fails the job when a test fails. The run also posts a check on the commit, named `Rehearsal · main` for a push and `Rehearsal` for a pull request.
 
-`rehearsal-cli.yml` runs on every push to `main`, and when you start it from the Actions tab. It signs in from the `REHEARSAL_CREDENTIALS` secret and starts every approved test of the app on its production environment with `rehearsal runs start`. Then `rehearsal runs wait` follows the run and fails the job unless every test passed. The workflow has the shape of the example in Rehearsal's docs, [Run it in GitHub Actions](https://rehearsal.dev/docs/cli/run-tests#github-actions), so a green run shows that the example works. It tests whatever the production address serves when it starts, which can be the commit before while Vercel is still deploying the new one.
+`rehearsal-cli.yml` runs on every push to `main`, and when you start it from the Actions tab. The CLI signs in with GitHub's identity for the job, as the repository connected to the project, so the workflow holds no Rehearsal secret. It starts every approved test of the app on its production environment with `rehearsal runs start`. Then `rehearsal runs wait` follows the run and fails the job unless every test passed. The workflow has the shape of the example in Rehearsal's docs, [Run it in GitHub Actions](https://rehearsal.dev/docs/cli/run-tests#github-actions), so a green run shows that the example works. It tests whatever the production address serves when it starts, which can be the commit before while Vercel is still deploying the new one.
 
 Rehearsal's own pull-request check needs no workflow. The Rehearsal GitHub App hears Vercel's deployment of each pull request and runs the Vercel rule's tests on that preview.
 
-Each workflow stops with one sentence that names the variable or secret it is missing.
+Each workflow stops with one sentence that names the variable it is missing.
 
 ## One-time setup
 
-1. Create the private repository `rehearsal-labs/testbed` and push this folder to `main`.
-2. Import the repository in Vercel, in the `rehearsal-labs` team, as a project named `testbed`. Keep the build settings as they are, because `vercel.json` already says there is nothing to install or build. Then open Settings, then Deployment Protection, and turn Vercel Authentication off. Rehearsal's browsers cannot get past Vercel's sign-in. Vercel's Standard Protection also covers each production deployment's own address, which the push workflow tests, so opening only the previews is not enough. Note the production address Vercel lists under Domains. It is `https://testbed-rehearsal-labs.vercel.app`, unless `testbed.vercel.app` was free.
-3. In Rehearsal, create a project named `testbed` with one app named `web`. Give `web` a production environment at the production address. Add a second environment of the kind preview at `https://testbed-git-main-rehearsal-labs.vercel.app`, the address Vercel keeps for the newest deployment of `main`. Add the test account to both environments, since each environment keeps its own.
+1. Create the public repository `rehearsal-labs/testbed` and push this folder to `main`. It is public because Vercel's free plan deploys a private repository only from a personal account, and because GitHub enforces required checks on a public repository in a free organisation.
+2. Import the repository in Vercel, in the Rehearsal team (its address name is `rehearsal4`), as a project named `testbed`. Keep the build settings as they are, because `vercel.json` already says there is nothing to install or build. Then open Settings, then Deployment Protection, and turn Vercel Authentication off. Rehearsal's browsers cannot get past Vercel's sign-in. Vercel's Standard Protection also covers each production deployment's own address, which the push workflow tests, so opening only the previews is not enough. Note the production address Vercel lists under Domains. Here it is `https://testbed-kappa.vercel.app`.
+3. In Rehearsal, create a workspace named Testbed and go through setup with the production address. Setup names the project and its app after the page title, Testbed tasks (project slug `testbed-tasks`), and gives the app a Production environment at that address. In Settings, Apps, add a second environment of the kind Preview at `https://testbed-git-main-rehearsal4.vercel.app`, the address Vercel keeps for the newest deployment of `main`. Add the test account to both environments, since each environment keeps its own.
 4. Connect the repository. In Rehearsal, open Settings, then Repository, choose `rehearsal-labs/testbed`, and install the Rehearsal GitHub App on it when GitHub asks.
 5. Create tests. In Rehearsal's chat, ask Re:agent to sign in, add a task, and mark a task done and reload, on the production environment, and save each flow it finds. Rehearsal writes and checks a test from each flow. Wait until `rehearsal tests list` shows every test as ready. A rule runs only approved tests, and a test that is not ready keeps a run from passing.
 6. Add three rules. Open Pull requests, then Rules, then Add a rule, and pick All approved tests for each one.
-   - When a branch is updated, branch `main`, address to test the production environment, with An address from GitHub Actions. Under Extra preview hosts, add `testbed-*-rehearsal-labs.vercel.app`. The workflow sends the commit's own deployment address, such as `https://testbed-4f9k2m1xq-rehearsal-labs.vercel.app`, and that is not a subdomain of the production address. This rule's ID goes in `REHEARSAL_PUSH_RULE`.
+   - When a branch is updated, branch `main`, address to test the production environment, with An address from GitHub Actions. Under Extra preview hosts, add `testbed-*-rehearsal4.vercel.app`. The workflow sends the commit's own deployment address, such as `https://testbed-8spgfuzu2-rehearsal4.vercel.app`, and that is not a subdomain of the production address. This rule's ID goes in `REHEARSAL_PUSH_RULE`.
    - When a pull request is opened or updated, into `main`, address to test the preview environment, with An address from GitHub Actions and the same extra preview host. This rule's ID goes in `REHEARSAL_PULL_REQUEST_RULE`.
    - When a pull request is opened or updated, into `main`, address to test the production environment, with The pull request's Vercel preview and Require passing tests before merging turned on.
 
    Rehearsal allows one live rule for each environment, trigger and branch. That is why the two pull-request rules sit on two environments. Both post a check named `Rehearsal`, so each pull request shows two checks with that name. You can also hold both Action rules to `.github/workflows/rehearsal-action.yml` under Workflow file.
 
-   Vercel names a commit's deployment `testbed-<9 letters and digits>-rehearsal-labs.vercel.app` and a branch's `testbed-git-<branch>-rehearsal-labs.vercel.app`. The host pattern matches both.
-7. Set the repository variables, with `gh` or under Settings, then Secrets and variables, then Actions. `rehearsal workspaces list` prints the workspace ID, and `rehearsal projects list` the project's slug, which `REHEARSAL_PROJECT` takes, as does an ID.
+   Vercel names a commit's deployment `testbed-<9 letters and digits>-rehearsal4.vercel.app` and a branch's `testbed-git-<branch>-rehearsal4.vercel.app`. The host pattern matches both.
+7. Set the repository variables, with `gh` or under Settings, then Secrets and variables, then Actions. The CLI workflow needs only the app, because the repository's connection tells it the workspace and the project.
 
    ```sh
    gh variable set REHEARSAL_PUSH_RULE --repo rehearsal-labs/testbed --body <push-rule-id>
    gh variable set REHEARSAL_PULL_REQUEST_RULE --repo rehearsal-labs/testbed --body <pull-request-rule-id>
-   gh variable set REHEARSAL_WORKSPACE_ID --repo rehearsal-labs/testbed --body <workspace-id>
-   gh variable set REHEARSAL_PROJECT --repo rehearsal-labs/testbed --body <project-slug>
-   gh variable set REHEARSAL_APP --repo rehearsal-labs/testbed --body web
+   gh variable set REHEARSAL_APP --repo rehearsal-labs/testbed --body testbed-kappa.vercel.app
    ```
 
-8. Add the `REHEARSAL_CREDENTIALS` secret the way Rehearsal's docs show. Make the sign-in in a folder of its own, so that signing in again on your computer later leaves it alone. Store it as the secret, then delete the folder.
+8. The CLI needs no sign-in of yours. `rehearsal-cli.yml` grants its job `id-token: write`, so GitHub gives the job an identity, and Rehearsal signs it in as `rehearsal-labs/testbed`, the repository you connected in step 4. That sign-in reaches only the Testbed tasks project, reads and runs its tests, and lasts 15 minutes, which the CLI renews while a wait goes on. Its runs read Started by GitHub. If the repository still holds the `REHEARSAL_CREDENTIALS` secret and the `REHEARSAL_WORKSPACE_ID` and `REHEARSAL_PROJECT` variables from an earlier setup, nothing reads them any more, so delete them:
 
    ```sh
-   XDG_CONFIG_HOME="$HOME/.rehearsal-ci" rehearsal login --scope testing:read --scope testing:run
-   gh secret set REHEARSAL_CREDENTIALS --repo rehearsal-labs/testbed < "$HOME/.rehearsal-ci/rehearsal/credentials.json"
-   rm -r "$HOME/.rehearsal-ci"
+   gh secret delete REHEARSAL_CREDENTIALS --repo rehearsal-labs/testbed
+   gh variable delete REHEARSAL_WORKSPACE_ID --repo rehearsal-labs/testbed
+   gh variable delete REHEARSAL_PROJECT --repo rehearsal-labs/testbed
    ```
 
-   The secret acts as you, with your permissions, and starting a run needs Manage projects in the workspace. It lasts 30 days. After that, `rehearsal-cli.yml` fails with exit code 3, and you make a new one the same way.
+No Rehearsal or Vercel secret is written into this repository or kept in its settings. The Action and the CLI both sign in with GitHub's identity for each workflow run.
 
-No Rehearsal or Vercel secret is ever written into this repository. The Action signs in with GitHub's identity for each workflow run, and the CLI's sign-in lives only in the repository secret.
+## Required checks
 
-## Required checks on GitHub Free
-
-GitHub does not enforce required checks on a private repository in an organisation on the Free plan. The Vercel rule's check still shows on every pull request, but a failing one does not block the merge. So here the merge gate can be seen and not enforced. Enforcing it needs a paid GitHub plan or a public repository.
+`main` requires the `Rehearsal` check, set under Settings, Branches, or with `gh api -X PUT repos/rehearsal-labs/testbed/branches/main/protection`. Administrators may still push to `main` directly, so setup changes need no pull request. Both pull-request rules post a check named `Rehearsal`, so while both are on, a pull request shows two checks with that name. Pause one of them to test the other alone.
 
 ## Files
 
