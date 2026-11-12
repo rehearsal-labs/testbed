@@ -100,3 +100,5 @@ No Rehearsal or Vercel secret is written into this repository or kept in its set
 | `retest.config.ts` | One app, `web`, on Google Chrome |
 | `tests/tasks.retest.ts` | Four tests: sign in, a new task's title, a done task after a reload, a wrong password |
 | `.github/workflows/` | `retest.yml`, `rehearsal-action.yml` and `rehearsal-cli.yml` |
+
+A pull request that changes only this file should pass the Rehearsal check.
